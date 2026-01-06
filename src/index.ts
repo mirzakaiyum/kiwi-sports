@@ -318,41 +318,114 @@ const HTML_PAGE = `<!DOCTYPE html>
 				</div>
 				
 				<div>
-					<h2>Path Parameters</h2>
+					<h2>API Endpoints</h2>
+					<div class="section">
+						<table>
+							<thead>
+								<tr>
+									<th>Endpoint</th>
+									<th>Method</th>
+									<th>Description</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr>
+									<td>/api/sports</td>
+									<td>GET</td>
+									<td>Returns all available sports with their leagues configuration</td>
+								</tr>
+								<tr>
+									<td>/api/sports/{sport}</td>
+									<td>GET</td>
+									<td>Returns leagues for a specific sport<br><small>Example: /api/sports/basketball</small></td>
+								</tr>
+								<tr>
+									<td>/api/teams?sport={sport}&league={league}</td>
+									<td>GET</td>
+									<td>Returns teams for a sport/league<br><small>Example: /api/teams?sport=basketball&league=nba</small></td>
+								</tr>
+								<tr>
+									<td>/api/scoreboard?sport={sport}</td>
+									<td>GET</td>
+									<td>Returns live scores and matches<br><small>Example: /api/scoreboard?sport=soccer&league=epl&status=ongoing</small></td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+				
+				<div>
+					<h2>Query Parameters for /api/teams</h2>
 					<div class="section">
 						<table>
 							<thead>
 								<tr>
 									<th>Parameter</th>
-									<th>Type</th>
 									<th>Required</th>
+									<th>Default</th>
 									<th>Description</th>
 								</tr>
 							</thead>
 							<tbody>
 								<tr>
 									<td>sport</td>
-									<td>string</td>
-									<td><span class="tag required">required</span></td>
-									<td>Sport slug (basketball, soccer, football, hockey)</td>
+									<td><span class="tag">optional</span></td>
+									<td>basketball</td>
+									<td>Sport slug (basketball, soccer, football, hockey, cricket, etc.)</td>
+								</tr>
+								<tr>
+									<td>league</td>
+									<td><span class="tag">optional</span></td>
+									<td>first league</td>
+									<td>League slug (nba, epl, nfl, etc.). Defaults to first league of the sport</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+				
+				<div>
+					<h2>Query Parameters for /api/scoreboard</h2>
+					<div class="section">
+						<table>
+							<thead>
+								<tr>
+									<th>Parameter</th>
+									<th>Required</th>
+									<th>Default</th>
+									<th>Description</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr>
+									<td>sport</td>
+									<td><span class="tag">optional</span></td>
+									<td>basketball</td>
+									<td>Sport slug (basketball, soccer, football, hockey, cricket, etc.)</td>
+								</tr>
+								<tr>
+									<td>league</td>
+									<td><span class="tag">optional</span></td>
+									<td>all leagues</td>
+									<td>League slug (nba, epl, nfl, etc.). If omitted, fetches all leagues for the sport</td>
 								</tr>
 								<tr>
 									<td>team</td>
-									<td>string</td>
 									<td><span class="tag">optional</span></td>
+									<td>-</td>
 									<td>Filter by team name or abbreviation</td>
 								</tr>
 								<tr>
 									<td>status</td>
-									<td>string</td>
 									<td><span class="tag">optional</span></td>
-									<td>Match status (ongoing, done, upcoming)</td>
+									<td>all</td>
+									<td>Match status filter (ongoing, done, upcoming, all)</td>
 								</tr>
 								<tr>
 									<td>date</td>
-									<td>string</td>
 									<td><span class="tag">optional</span></td>
-									<td>Date in YYYYMMDD format</td>
+									<td>today</td>
+									<td>Date in YYYYMMDD format (e.g., 20260106)</td>
 								</tr>
 							</tbody>
 						</table>
@@ -592,6 +665,25 @@ async function main(request: Request): Promise<Response> {
 		// API: List sports
 		if (path === '/api/sports') {
 			return jsonResponse(SPORTS, headers)
+		}
+
+		// API: Get leagues for a specific sport
+		if (path.startsWith('/api/sports/')) {
+			const sportSlug = path.split('/')[3]
+			if (!sportSlug) {
+				return jsonResponse({ error: 'Sport slug is required' }, headers, 400)
+			}
+			
+			const sport = getSportBySlug(sportSlug)
+			if (!sport) {
+				return jsonResponse({ error: 'Unknown sport' }, headers, 404)
+			}
+			
+			return jsonResponse({
+				sport: sport.name,
+				slug: sport.slug,
+				leagues: sport.leagues
+			}, headers)
 		}
 
 		// API: Get teams for a sport/league

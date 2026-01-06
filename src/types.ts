@@ -69,8 +69,6 @@ export const SPORTS: SportConfig[] = [
 		leagues: [
 			{ name: 'NBA', league: 'nba', slug: 'nba' },
 			{ name: 'WNBA', league: 'wnba', slug: 'wnba' },
-			{ name: 'College Basketball', league: 'mens-college-basketball', slug: 'ncaab' },
-			{ name: "Women's College Basketball", league: 'womens-college-basketball', slug: 'ncaaw' },
 		],
 	},
 	{
