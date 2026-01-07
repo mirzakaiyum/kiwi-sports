@@ -224,10 +224,10 @@ function parseMatchFromRSSItem(item: string, matchStatus: MatchStatus): Match | 
 	}
 	
 	// Format status detail
-	// User requested to add this info to statusDetail
+	// Use abbreviation instead of full name (e.g., "ENG is batting")
 	let detail = title
-	if (t1.isBatting) detail = `${t1.name} is batting`
-	else if (t2.isBatting) detail = `${t2.name} is batting`
+	if (t1.isBatting) detail = `${getAbbrev(t1.name)} is batting`
+	else if (t2.isBatting) detail = `${getAbbrev(t2.name)} is batting`
 
 	// Extract date
 	const dateMatch = item.match(/<pubDate>([^<]+)<\/pubDate>/)
