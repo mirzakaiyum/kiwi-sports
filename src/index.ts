@@ -266,9 +266,9 @@ const HTML_PAGE = `<!DOCTYPE html>
 							<select id="league"></select>
 						</div>
 						<div>
-							<label for="team">Team</label>
-							<select id="team"></select>
-							<input id="teamInput" type="text" placeholder="Enter team name" class="hidden" style="margin-top: 8px;">
+							<label for="team">Teams (hold Ctrl/Cmd to select multiple)</label>
+							<select id="team" multiple style="height: 120px;"></select>
+							<input id="teamInput" type="text" placeholder="Enter team names (comma-separated)" class="hidden" style="margin-top: 8px;">
 						</div>
 						<div>
 							<label for="date">Date</label>
@@ -413,7 +413,7 @@ const HTML_PAGE = `<!DOCTYPE html>
 									<td>team</td>
 									<td><span class="tag">optional</span></td>
 									<td>-</td>
-									<td>Filter by team name or abbreviation</td>
+									<td>Filter by team names or abbreviations (comma-separated for multiple)</td>
 								</tr>
 								<tr>
 									<td>status</td>
@@ -497,7 +497,7 @@ const HTML_PAGE = `<!DOCTYPE html>
 				const res = await fetch(url);
 				const data = await res.json();
 				const teams = data.teams || [];
-				teamSelect.innerHTML = '<option value="">All Teams</option>' + 
+				teamSelect.innerHTML = 
 					teams.map(t => \`<option value="\${t.abbrev}">\${t.name}</option>\`).join('');
 			} catch (err) {
 				teamSelect.innerHTML = '<option value="">All Teams</option>';
@@ -507,7 +507,14 @@ const HTML_PAGE = `<!DOCTYPE html>
 		function updateEndpoint() {
 			const sport = sportSelect.value;
 			const league = leagueSelect.value;
-			const teamVal = !teamInput.classList.contains('hidden') ? teamInput.value : teamSelect.value;
+			// Get selected teams from multiselect
+			let teamVal = '';
+			if (!teamInput.classList.contains('hidden')) {
+				teamVal = teamInput.value;
+			} else {
+				const selectedOptions = Array.from(teamSelect.selectedOptions).map(opt => opt.value).filter(v => v);
+				teamVal = selectedOptions.join(',');
+			}
 			const date = dateInput.value.replace(/-/g, '');
 			const status = currentStatus;
 			
@@ -515,7 +522,7 @@ const HTML_PAGE = `<!DOCTYPE html>
 			if (league && league !== 'all') url += \`&league=\${league}\`;
 			// Only add date for non-cricket sports (ESPN uses it, Cricket RSS ignores it)
 			if (date && sport !== 'cricket') url += \`&date=\${date}\`;
-			if (teamVal) url += \`&team=\${encodeURIComponent(teamVal)}\`;
+			if (teamVal) url += \`&team=\${teamVal}\`;
 			if (status !== 'all') url += \`&status=\${status}\`;
 			
 			endpointUrlEl.textContent = url;
@@ -583,7 +590,7 @@ const HTML_PAGE = `<!DOCTYPE html>
 		fetchBtn.addEventListener('click', loadScoreboard);
 		
 		clearBtn.addEventListener('click', () => {
-			teamSelect.value = '';
+			Array.from(teamSelect.options).forEach(opt => opt.selected = false);
 			teamInput.value = '';
 			dateInput.value = new Date().toISOString().split('T')[0];
 			currentStatus = 'all';

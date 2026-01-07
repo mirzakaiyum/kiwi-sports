@@ -234,15 +234,27 @@ export function filterByStatus(matches: Match[], status: MatchStatus | 'all'): M
 }
 
 /**
- * Filter matches by team (case-insensitive)
+ * Filter matches by team(s) (case-insensitive)
+ * Supports comma-separated team names/abbreviations for multiselect
  */
 export function filterByTeam(matches: Match[], teamSearch: string): Match[] {
-	const search = teamSearch.toLowerCase()
-	return matches.filter(
-		(m) =>
-			m.home.name.toLowerCase().includes(search) ||
-			m.home.abbrev.toLowerCase().includes(search) ||
-			m.away.name.toLowerCase().includes(search) ||
-			m.away.abbrev.toLowerCase().includes(search)
-	)
+	// Split by comma and trim each team, filter out empty strings
+	const teams = teamSearch.split(',').map(t => t.trim().toLowerCase()).filter(t => t.length > 0)
+	
+	if (teams.length === 0) return matches
+	
+	return matches.filter((m) => {
+		const homeName = m.home.name.toLowerCase()
+		const homeAbbrev = m.home.abbrev.toLowerCase()
+		const awayName = m.away.name.toLowerCase()
+		const awayAbbrev = m.away.abbrev.toLowerCase()
+		
+		// Match if any of the selected teams is playing (home or away)
+		return teams.some(search => 
+			homeName.includes(search) ||
+			homeAbbrev.includes(search) ||
+			awayName.includes(search) ||
+			awayAbbrev.includes(search)
+		)
+	})
 }
