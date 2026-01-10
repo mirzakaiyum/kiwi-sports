@@ -5,6 +5,8 @@
 
 import * as espn from './providers/espn.ts'
 import * as cricbuzz from './providers/cricinfo.ts'
+import * as sportsmonk from './providers/sportsmonk.ts'
+import type { Env } from './providers/sportsmonk.ts'
 import type { ApiResponse, MatchStatus, Match } from './types.ts'
 import { filterByStatus, filterByTeam, getSportBySlug, SPORTS } from './types.ts'
 import { rateLimiter } from './rateLimit.ts'
@@ -478,16 +480,9 @@ const HTML_PAGE = `<!DOCTYPE html>
 			const sport = sportSelect.value;
 			const league = leagueSelect.value;
 			
-			// Special logic for Cricket 'Other League'
-			if (sport === 'cricket' && league === 'other') {
-				teamSelect.classList.add('hidden');
-				teamInput.classList.remove('hidden');
-				teamInput.value = ''; // Reset
-				return;
-			} else {
-				teamSelect.classList.remove('hidden');
-				teamInput.classList.add('hidden');
-			}
+			// Always show multiselect (text input no longer needed for Cricket 'Other League')
+			teamSelect.classList.remove('hidden');
+			teamInput.classList.add('hidden');
 			
 			teamSelect.innerHTML = '<option value="">All Teams</option><option value="" disabled>Loading...</option>';
 			
@@ -635,9 +630,11 @@ const HTML_PAGE = `<!DOCTYPE html>
 /**
  * Main fetch handler
  */
-export default { fetch: main }
+export default {
+	fetch: (request: Request, env: Env) => main(request, env)
+}
 
-async function main(request: Request): Promise<Response> {
+async function main(request: Request, env: Env): Promise<Response> {
 	const url = new URL(request.url)
 	const path = url.pathname
 
@@ -693,6 +690,18 @@ async function main(request: Request): Promise<Response> {
 			}, headers)
 		}
 
+		// API: Refresh SportsMonk cache manually
+		if (path === '/api/teams/refresh') {
+			const result = await sportsmonk.refreshCache(env)
+			return jsonResponse(result, headers, result.success ? 200 : 500)
+		}
+
+		// API: Get SportsMonk cache status
+		if (path === '/api/teams/status') {
+			const status = await sportsmonk.getCacheStatus(env)
+			return jsonResponse(status, headers)
+		}
+
 		// API: Get teams for a sport/league
 		if (path === '/api/teams') {
 			const sportSlug = url.searchParams.get('sport') || 'basketball'
@@ -702,10 +711,13 @@ async function main(request: Request): Promise<Response> {
 				return jsonResponse({ error: 'Unknown sport' }, headers, 400)
 			}
 			
-			// Use Cricbuzz for cricket, ESPN for other sports
+			// Use SportsMonk cached data for cricket, ESPN for other sports
 			if (sportSlug === 'cricket') {
-				const teams = cricbuzz.getTeams()
-				return jsonResponse({ sport: sport.name, league: 'All', teams }, headers)
+				// leagueSlug: 'international' = national teams, 'other' = franchise/club teams
+				const cricketLeague = leagueSlug || 'international'
+				const teams = await sportsmonk.getCachedTeams(env, cricketLeague)
+				const leagueName = cricketLeague === 'other' ? 'Other Leagues' : 'International'
+				return jsonResponse({ sport: sport.name, league: leagueName, teams }, headers)
 			}
 			
 			// Use specified league or default to first one
