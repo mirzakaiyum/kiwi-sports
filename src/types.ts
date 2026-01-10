@@ -54,13 +54,10 @@ export interface SportConfig {
  */
 export const SPORTS: SportConfig[] = [
 	{
-		name: 'Football',
-		sport: 'football',
-		slug: 'football',
-		leagues: [
-			{ name: 'NFL', league: 'nfl', slug: 'nfl' },
-
-		],
+		name: 'Baseball',
+		sport: 'baseball',
+		slug: 'baseball',
+		leagues: [{ name: 'MLB', league: 'mlb', slug: 'mlb' }],
 	},
 	{
 		name: 'Basketball',
@@ -72,16 +69,60 @@ export const SPORTS: SportConfig[] = [
 		],
 	},
 	{
-		name: 'Baseball',
-		sport: 'baseball',
-		slug: 'baseball',
-		leagues: [{ name: 'MLB', league: 'mlb', slug: 'mlb' }],
+		name: 'Cricket',
+		sport: 'cricket',
+		slug: 'cricket',
+		leagues: [
+			{ name: 'International', league: 'international', slug: 'international' },
+			{ name: 'Other League', league: 'other', slug: 'other' },
+		],
+	},
+	{
+		name: 'Football',
+		sport: 'football',
+		slug: 'football',
+		leagues: [
+			{ name: 'NFL', league: 'nfl', slug: 'nfl' },
+		],
+	},
+	{
+		name: 'Golf',
+		sport: 'golf',
+		slug: 'golf',
+		leagues: [
+			{ name: 'PGA Tour', league: 'pga', slug: 'pga' },
+			{ name: 'LPGA Tour', league: 'lpga', slug: 'lpga' },
+			{ name: 'European Tour', league: 'eur', slug: 'eur' },
+			{ name: 'Champions Tour', league: 'champions-tour', slug: 'champions' },
+		],
 	},
 	{
 		name: 'Hockey',
 		sport: 'hockey',
 		slug: 'hockey',
 		leagues: [{ name: 'NHL', league: 'nhl', slug: 'nhl' }],
+	},
+	{
+		name: 'MMA',
+		sport: 'mma',
+		slug: 'mma',
+		leagues: [{ name: 'UFC', league: 'ufc', slug: 'ufc' }],
+	},
+	{
+		name: 'Racing',
+		sport: 'racing',
+		slug: 'racing',
+		leagues: [
+			{ name: 'Formula 1', league: 'f1', slug: 'f1' },
+			{ name: 'NASCAR Cup', league: 'nascar-premier', slug: 'nascar' },
+			{ name: 'IndyCar', league: 'irl', slug: 'indycar' },
+		],
+	},
+	{
+		name: 'Rugby',
+		sport: 'rugby',
+		slug: 'rugby',
+		leagues: [{ name: 'Rugby Union', league: 'rugby-union', slug: 'rugby-union' }],
 	},
 	{
 		name: 'Soccer',
@@ -108,54 +149,12 @@ export const SPORTS: SportConfig[] = [
 		],
 	},
 	{
-		name: 'MMA',
-		sport: 'mma',
-		slug: 'mma',
-		leagues: [{ name: 'UFC', league: 'ufc', slug: 'ufc' }],
-	},
-	{
 		name: 'Tennis',
 		sport: 'tennis',
 		slug: 'tennis',
 		leagues: [
 			{ name: 'ATP', league: 'atp', slug: 'atp' },
 			{ name: 'WTA', league: 'wta', slug: 'wta' },
-		],
-	},
-	{
-		name: 'Golf',
-		sport: 'golf',
-		slug: 'golf',
-		leagues: [
-			{ name: 'PGA Tour', league: 'pga', slug: 'pga' },
-			{ name: 'LPGA Tour', league: 'lpga', slug: 'lpga' },
-			{ name: 'European Tour', league: 'eur', slug: 'eur' },
-			{ name: 'Champions Tour', league: 'champions-tour', slug: 'champions' },
-		],
-	},
-	{
-		name: 'Rugby',
-		sport: 'rugby',
-		slug: 'rugby',
-		leagues: [{ name: 'Rugby Union', league: 'rugby-union', slug: 'rugby-union' }],
-	},
-	{
-		name: 'Cricket',
-		sport: 'cricket',
-		slug: 'cricket',
-		leagues: [
-			{ name: 'International', league: 'international', slug: 'international' },
-			{ name: 'Other League', league: 'other', slug: 'other' },
-		],
-	},
-	{
-		name: 'Racing',
-		sport: 'racing',
-		slug: 'racing',
-		leagues: [
-			{ name: 'Formula 1', league: 'f1', slug: 'f1' },
-			{ name: 'NASCAR Cup', league: 'nascar-premier', slug: 'nascar' },
-			{ name: 'IndyCar', league: 'irl', slug: 'indycar' },
 		],
 	},
 ]
@@ -234,7 +233,7 @@ export function filterByStatus(matches: Match[], status: MatchStatus | 'all'): M
 }
 
 /**
- * Filter matches by team(s) (case-insensitive)
+ * Filter matches by team(s) (case-insensitive, exact match)
  * Supports comma-separated team names/abbreviations for multiselect
  */
 export function filterByTeam(matches: Match[], teamSearch: string): Match[] {
@@ -244,17 +243,23 @@ export function filterByTeam(matches: Match[], teamSearch: string): Match[] {
 	if (teams.length === 0) return matches
 	
 	return matches.filter((m) => {
-		const homeName = m.home.name.toLowerCase()
-		const homeAbbrev = m.home.abbrev.toLowerCase()
-		const awayName = m.away.name.toLowerCase()
-		const awayAbbrev = m.away.abbrev.toLowerCase()
+		const homeName = m.home.name
+		const homeAbbrev = m.home.abbrev
+		const awayName = m.away.name
+		const awayAbbrev = m.away.abbrev
 		
-		// Match if any of the selected teams is playing (home or away)
-		return teams.some(search => 
-			homeName.includes(search) ||
-			homeAbbrev.includes(search) ||
-			awayName.includes(search) ||
-			awayAbbrev.includes(search)
-		)
+		// Match if search term appears as a whole word in names
+		// This allows "Bangladesh" to match "Bangladesh Under-19s"
+		// But prevents "India" from matching "Mumbai Indians"
+		return teams.some(search => {
+			// Escape special characters in search string
+			const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+			const regex = new RegExp(`\\b${escapedSearch}\\b`, 'i')
+			
+			return regex.test(homeName) || 
+				   regex.test(homeAbbrev) || 
+				   regex.test(awayName) || 
+				   regex.test(awayAbbrev)
+		})
 	})
 }

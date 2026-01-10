@@ -62,22 +62,18 @@ function getTeamFlag(teamName: string): string | undefined {
 	if (!teamName) return undefined
 	const normalizedName = teamName.trim()
 	
-	// Direct match first
+	// Direct match first (optimisation)
 	if (TEAM_FLAGS[normalizedName]) {
 		return TEAM_FLAGS[normalizedName]
 	}
 	
-	// Case-insensitive match
-	const lowerName = normalizedName.toLowerCase()
+	// Check against keys using word boundaries
+	// This prevents "Mumbai Indians" from matching "India"
+	// and ensures we only catch "India Women", "Australia U19", etc.
 	for (const [team, flag] of Object.entries(TEAM_FLAGS)) {
-		if (team.toLowerCase() === lowerName) {
-			return flag
-		}
-	}
-	
-	// Partial match (e.g., "India Under-19s" should match "India")
-	for (const [team, flag] of Object.entries(TEAM_FLAGS)) {
-		if (lowerName.includes(team.toLowerCase()) || team.toLowerCase().includes(lowerName)) {
+		// regex: \bTeamName\b (case insensitive)
+		// escapes special chars if any (though currently our keys are simple)
+		if (new RegExp(`\\b${team}\\b`, 'i').test(normalizedName)) {
 			return flag
 		}
 	}
@@ -303,11 +299,24 @@ export async function getMatches(
  */
 export async function getScoreboard(
 	_sport: string,
-	_leagueSlug: string,
+	leagueSlug: string,
 	_date?: string
 ): Promise<Match[]> {
-	// The RSS feed contains a mix. We just return it.
-	return getMatches('live')
+	const matches = await getMatches('live')
+
+	// Filter for international matches if requested
+	if (leagueSlug === 'international') {
+		return matches.filter(m => {
+			// Check if at least one team is a known international team
+			// This filters out domestic matches like "Mashonaland Eagles v Southern Rocks"
+			// unless they happen to have a name collision with a country.
+			const homeIsIntl = getTeamFlag(m.home.name) !== undefined
+			const awayIsIntl = getTeamFlag(m.away.name) !== undefined
+			return homeIsIntl || awayIsIntl
+		})
+	}
+
+	return matches
 }
 
 /**

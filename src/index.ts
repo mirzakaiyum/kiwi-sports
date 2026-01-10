@@ -5,8 +5,7 @@
 
 import * as espn from './providers/espn.ts'
 import * as cricbuzz from './providers/cricinfo.ts'
-import * as sportsmonk from './providers/sportsmonk.ts'
-import type { Env } from './providers/sportsmonk.ts'
+import * as cricbuzzTeams from './providers/cricbuzz-teams.ts'
 import type { ApiResponse, MatchStatus, Match } from './types.ts'
 import { filterByStatus, filterByTeam, getSportBySlug, SPORTS } from './types.ts'
 import { rateLimiter } from './rateLimit.ts'
@@ -690,18 +689,6 @@ async function main(request: Request, env: Env): Promise<Response> {
 			}, headers)
 		}
 
-		// API: Refresh SportsMonk cache manually
-		if (path === '/api/teams/refresh') {
-			const result = await sportsmonk.refreshCache(env)
-			return jsonResponse(result, headers, result.success ? 200 : 500)
-		}
-
-		// API: Get SportsMonk cache status
-		if (path === '/api/teams/status') {
-			const status = await sportsmonk.getCacheStatus(env)
-			return jsonResponse(status, headers)
-		}
-
 		// API: Get teams for a sport/league
 		if (path === '/api/teams') {
 			const sportSlug = url.searchParams.get('sport') || 'basketball'
@@ -711,11 +698,12 @@ async function main(request: Request, env: Env): Promise<Response> {
 				return jsonResponse({ error: 'Unknown sport' }, headers, 400)
 			}
 			
-			// Use SportsMonk cached data for cricket, ESPN for other sports
+			// Use Cricbuzz scraped data for cricket, ESPN for other sports
 			if (sportSlug === 'cricket') {
 				// leagueSlug: 'international' = national teams, 'other' = franchise/club teams
+				// Return flat list of teams as requested
 				const cricketLeague = leagueSlug || 'international'
-				const teams = await sportsmonk.getCachedTeams(env, cricketLeague)
+				const teams = await cricbuzzTeams.getTeams(cricketLeague)
 				const leagueName = cricketLeague === 'other' ? 'Other Leagues' : 'International'
 				return jsonResponse({ sport: sport.name, league: leagueName, teams }, headers)
 			}
@@ -746,7 +734,28 @@ async function main(request: Request, env: Env): Promise<Response> {
 			
 			if (sportSlug === 'cricket') {
 				// Cricbuzz handles fetching all match types internally
-				matches = await cricbuzz.getScoreboard(sportSlug, leagueSlug || 'international', date)
+				// If looking for a specific team, fetch ALL matches to ensure we find it (could be league or international)
+				// Otherwise respect user selected league (default to international)
+				const targetLeagueVal = team ? 'all' : (leagueSlug || 'international')
+				matches = await cricbuzz.getScoreboard(sportSlug, targetLeagueVal, date)
+				
+				// Enrich with logos (Best effort)
+				for (const match of matches) {
+					if (!match.home.logo) match.home.logo = await cricbuzzTeams.getTeamLogo(match.home.name)
+					if (!match.away.logo) match.away.logo = await cricbuzzTeams.getTeamLogo(match.away.name)
+				}
+
+				// Relaxed logic:
+				// 1. If team selected -> Filter matches strictly for that team
+				// 2. If no team selected -> Show matches (limit to 6)
+				if (team) {
+					matches = filterByTeam(matches, team)
+				} else {
+					// Limit to 6 matches if no filter active to keep UI clean
+					if (matches.length > 6) {
+						matches = matches.slice(0, 6)
+					}
+				}
 			} else {
 				// ESPN: If specific league provided, fetch only that; otherwise fetch all
 				let leaguesToFetch = sport.leagues
@@ -764,17 +773,9 @@ async function main(request: Request, env: Env): Promise<Response> {
 				matches = leagueResults.flat()
 			}
 
-			// Apply filters
+			// Apply team filter if specified, otherwise show all matches for the league
 			if (team) {
-				const filteredMatches = filterByTeam(matches, team)
-				
-				// Special logic for Cricket (RSS):
-				// If filter returns no matches, fallback to the first match
-				if (sportSlug === 'cricket' && filteredMatches.length === 0 && matches.length > 0) {
-					matches = [matches[0]]
-				} else {
-					matches = filteredMatches
-				}
+				matches = filterByTeam(matches, team)
 			}
 			if (status !== 'all') {
 				matches = filterByStatus(matches, status)
