@@ -5,7 +5,7 @@
  */
 
 import type { Match, Team, SportConfig, LeagueConfig, MatchStatus } from '../types.ts'
-import { getLeagueConfig, SPORTS } from '../types.ts'
+import { getLeagueConfig, SPORTS_CONFIG } from '../sports-config.ts'
 
 const BASE_URL = 'https://site.api.espn.com/apis/site/v2/sports'
 
@@ -83,14 +83,14 @@ async function fetchEspn<T>(path: string): Promise<T> {
  * Get list of sports with their leagues
  */
 export function getSports(): SportConfig[] {
-	return SPORTS
+	return SPORTS_CONFIG
 }
 
 /**
  * Get leagues for a specific sport
  */
 export function getLeagues(sportSlug: string): LeagueConfig[] {
-	const sport = SPORTS.find((s) => s.slug === sportSlug.toLowerCase())
+	const sport = SPORTS_CONFIG.find((s) => s.slug === sportSlug.toLowerCase())
 	return sport?.leagues || []
 }
 

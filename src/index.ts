@@ -7,7 +7,8 @@ import * as espn from './providers/espn.ts'
 import * as cricbuzz from './providers/cricinfo.ts'
 import * as cricbuzzTeams from './providers/cricbuzz-teams.ts'
 import type { ApiResponse, MatchStatus, Match } from './types.ts'
-import { filterByStatus, filterByTeam, getSportBySlug, SPORTS } from './types.ts'
+import { filterByStatus, filterByTeam } from './types.ts'
+import { getSportBySlug, SPORTS_CONFIG } from './sports-config.ts'
 import { rateLimiter } from './rateLimit.ts'
 
 // Import HTML as string for landing page
@@ -667,7 +668,7 @@ async function main(request: Request, env: Env): Promise<Response> {
 
 		// API: List sports
 		if (path === '/api/sports') {
-			return jsonResponse(SPORTS, headers)
+			return jsonResponse(SPORTS_CONFIG, headers)
 		}
 
 		// API: Get leagues for a specific sport

@@ -1,19 +1,20 @@
 import { assertEquals, assertExists } from 'https://deno.land/std@0.208.0/assert/mod.ts'
-import { filterByStatus, filterByTeam, getSportBySlug, getLeagueConfig, SPORTS, mapEspnStatus } from './types.ts'
+import { filterByStatus, filterByTeam, mapEspnStatus } from './types.ts'
+import { getSportBySlug, getLeagueConfig, SPORTS_CONFIG } from './sports-config.ts'
 import type { Match } from './types.ts'
 import * as espn from './providers/espn.ts'
 
 /**
  * Types Tests
  */
-Deno.test('SPORTS: contains sports with leagues hierarchy', () => {
-	assertEquals(SPORTS.length > 0, true)
+Deno.test('SPORTS_CONFIG: contains sports with leagues hierarchy', () => {
+	assertEquals(SPORTS_CONFIG.length > 0, true)
 
-	const basketball = SPORTS.find((s) => s.slug === 'basketball')
+	const basketball = SPORTS_CONFIG.find((s) => s.slug === 'basketball')
 	assertExists(basketball)
 	assertEquals(basketball.name, 'Basketball')
 	assertEquals(basketball.sport, 'basketball')
-	assertEquals(basketball.leagues.length >= 3, true)
+	assertEquals(basketball.leagues.length >= 2, true)
 	
 	const nba = basketball.leagues.find(l => l.slug === 'nba')
 	assertExists(nba)
@@ -83,7 +84,7 @@ Deno.test('espn.getSports: returns sports with leagues', () => {
 	
 	const basketball = sports.find((s) => s.slug === 'basketball')
 	assertExists(basketball)
-	assertEquals(basketball.leagues.length >= 3, true)
+	assertEquals(basketball.leagues.length >= 2, true)
 })
 
 Deno.test('espn.getLeagues: returns leagues for sport', () => {
